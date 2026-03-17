@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Какой ты персонаж из советских мультфильмов?</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #FFD93D 0%, #FF6B35 50%, #FF4757 100%);
+            min-height: 100vh;
+            padding: 16px;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Floating background shapes */
+        .bg-shapes { position: fixed; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
+        .shape {
+            position: absolute; border-radius: 50%; opacity: 0.08; background: white;
+            animation: float-shape 18s infinite ease-in-out;
+        }
+        .shape-1 { width: 180px; height: 180px; top: 8%; left: 8%; }
+        .shape-2 { width: 130px; height: 130px; top: 55%; right: 8%; animation-delay: 6s; }
+        .shape-3 { width: 90px; height: 90px; bottom: 8%; left: 25%; animation-delay: 12s; }
+
+        @keyframes float-shape {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(25px, -25px) rotate(120deg); }
+            66% { transform: translate(-15px, 15px) rotate(240deg); }
+        }
+
+        .container { max-width: 460px; margin: 0 auto; animation: fadeIn 0.4s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideOutLeft { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-40px); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+
+        /* Top bar — only 2 buttons */
+        .top-bar {
+            position: fixed; top: 12px; left: 12px; right: 12px;
+            display: flex; justify-content: space-between; z-index: 100;
+            pointer-events: none;
+        }
+        .top-btn {
+            width: 42px; height: 42px; border-radius: 50%;
+            background: rgba(255,255,255,0.92); border: none;
+            font-size: 20px; cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            transition: transform 0.2s; pointer-events: auto;
+            backdrop-filter: blur(8px);
+        }
+        body.dark-mode .top-btn { background: rgba(40,40,60,0.92); }
+        .top-btn:active { transform: scale(0.92); }
+
+        /* Cards */
+        .card {
+            background: rgba(255,255,255,0.97);
+            border-radius: 22px; padding: 24px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+        }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 { font-size: 24px; font-weight: 800; color: #FF4757; margin-bottom: 8px; }
+        .header p { font-size: 15px; color: #777; font-weight: 600; }
+        .emoji { font-size: 56px; animation: bounce 2s infinite; display: block; margin-bottom: 12px; }
+
+        .characters-preview { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+        .char-preview { font-size: 32px; animation: bounce 1.2s infinite; animation-delay: calc(var(--i) * 0.08s); }
+
+        /* Progress bar */
+        .progress-bar { width: 100%; height: 10px; background: rgba(255,255,255,0.3); border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #FFD93D, #FF4757); border-radius: 8px; transition: width 0.4s ease; }
+
+        /* Question */
+        .question-card { animation: slideIn 0.35s ease; }
+        .question-card.sliding-out { animation: slideOutLeft 0.25s ease forwards; }
+        .question-card.sliding-in { animation: slideInRight 0.25s ease forwards; }
+
+        .question-number {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD93D, #FF6B35);
+            color: white; padding: 6px 16px; border-radius: 16px;
+            font-weight: 700; font-size: 13px; margin-bottom: 14px;
+        }
+        .question-text { font-size: 19px; font-weight: 700; color: #333; margin-bottom: 20px; line-height: 1.4; }
+
+        .answers { display: flex; flex-direction: column; gap: 10px; }
+        .answer-btn {
+            background: linear-gradient(135deg, #f8f9fa, #eef0f2);
+            border: 2px solid transparent; border-radius: 14px;
+            padding: 16px 18px; font-size: 15px; font-weight: 600;
+            text-align: left; cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex; align-items: center; gap: 12px;
+            font-family: inherit;
+        }
+        .answer-btn:active {
+            background: linear-gradient(135deg, #FFD93D, #FF6B35);
+            color: white; transform: scale(0.97); border-color: #FF4757;
+        }
+        @media (hover: hover) {
+            .answer-btn:hover {
+                background: linear-gradient(135deg, #FFD93D, #FF6B35);
+                color: white; transform: translateX(4px); border-color: #FF4757;
+            }
+            .answer-btn:hover .answer-letter { background: white; color: #FF4757; }
+        }
+        .answer-letter {
+            width: 30px; height: 30px; background: #FF4757; color: white;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 13px; flex-shrink: 0;
+        }
+
+        /* Result */
+        .result-card { text-align: center; animation: pulse 0.4s ease; }
+        .result-emoji { font-size: 88px; margin-bottom: 16px; animation: bounce 1.5s infinite; }
+        .result-title { font-size: 13px; color: #999; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; font-weight: 700; }
+        .result-character { font-size: 28px; font-weight: 900; color: #FF4757; margin-bottom: 16px; }
+        .result-traits { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; justify-content: center; }
+        .trait {
+            background: linear-gradient(135deg, #FFD93D, #FF6B35);
+            color: white; padding: 6px 14px; border-radius: 16px;
+            font-size: 13px; font-weight: 700;
+        }
+        .meme-container {
+            margin: 16px 0; padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 14px; text-align: center;
+        }
+        .meme-text { color: white; font-size: 16px; font-weight: 700; text-shadow: 1px 1px 3px rgba(0,0,0,0.2); }
+        .meme-subtext { color: rgba(255,255,255,0.75); font-size: 13px; margin-top: 6px; }
+        .result-description {
+            font-size: 15px; color: #555; line-height: 1.6;
+            margin-bottom: 20px; padding: 16px;
+            background: linear-gradient(135deg, #fff5f5, #fff9e6);
+            border-radius: 14px; text-align: left;
+        }
+
+        /* Match bars */
+        .match-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .match-emoji { font-size: 22px; width: 30px; text-align: center; }
+        .match-bar-container { flex: 1; height: 10px; background: #eee; border-radius: 6px; overflow: hidden; }
+        .match-bar { height: 100%; background: linear-gradient(90deg, #FFD93D, #FF4757); border-radius: 6px; transition: width 0.6s ease; }
+        .match-percent { font-size: 13px; font-weight: 800; color: #FF4757; width: 36px; text-align: right; }
+
+        /* Buttons */
+        .btn {
+            width: 100%; padding: 16px 20px; border: none; border-radius: 14px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: all 0.25s ease; margin-bottom: 10px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-family: inherit;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-start {
+            background: linear-gradient(135deg, #FF4757, #FF6B35);
+            color: white; font-size: 18px; padding: 20px;
+            box-shadow: 0 6px 20px rgba(255,71,87,0.35);
+        }
+        .btn-primary { background: linear-gradient(135deg, #4989F4, #2B6CB0); color: white; box-shadow: 0 4px 16px rgba(73,137,244,0.3); }
+        .btn-telegram { background: linear-gradient(135deg, #2AABEE, #229ED9); color: white; box-shadow: 0 4px 16px rgba(42,171,238,0.3); }
+        .btn-star { background: linear-gradient(135deg, #FFD700, #FFA500); color: #333; box-shadow: 0 4px 16px rgba(255,215,0,0.3); }
+        .btn-secondary { background: linear-gradient(135deg, #e9ecef, #dee2e6); color: #495057; }
+
+        .hidden { display: none !important; }
+
+        /* Confetti */
+        .confetti {
+            position: fixed; width: 8px; height: 8px; border-radius: 2px;
+            animation: confetti-fall 2.5s ease-out forwards; z-index: 200;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(-50px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* History modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 200; opacity: 0; visibility: hidden;
+            transition: all 0.25s ease; padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; border-radius: 20px; padding: 24px;
+            max-width: 400px; width: 100%; max-height: 80vh;
+            overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        body.dark-mode .modal-content { background: #1e1e32; color: #e0e0e0; }
+        .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 16px; text-align: center; }
+        .modal-close {
+            width: 100%; padding: 14px; background: #eee; border: none;
+            border-radius: 12px; font-size: 15px; font-weight: 700;
+            cursor: pointer; margin-top: 16px; font-family: inherit;
+        }
+        body.dark-mode .modal-close { background: #2a2a40; color: #e0e0e0; }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-radius: 10px; background: #f5f5f5; margin-bottom: 6px;
+        }
+        body.dark-mode .history-item { background: #2a2a40; }
+        .history-empty { text-align: center; color: #999; padding: 20px; font-size: 14px; }
+
+        /* Dark mode */
+        body.dark-mode { background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); }
+        body.dark-mode .card { background: rgba(28,28,48,0.96); color: #e0e0e0; }
+        body.dark-mode .header h1 { color: #FFD93D; }
+        body.dark-mode .header p, body.dark-mode .question-text { color: #b0b0b0; }
+        body.dark-mode .answer-btn { background: linear-gradient(135deg, #2a2a40, #1e1e30); color: #e0e0e0; }
+        body.dark-mode .result-description { background: linear-gradient(135deg, #1a1a30, #252545); color: #d0d0d0; }
+        body.dark-mode .match-bar-container { background: #2a2a40; }
+    </style>
+</head>
+<body>
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <!-- Top bar: history (left), theme (right) -->
+    <div class="top-bar">
+        <button class="top-btn" onclick="showHistory()" title="История">📚</button>
+        <button class="top-btn" id="themeBtn" onclick="toggleTheme()" title="Тема">🌙</button>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal-overlay" id="historyModal" onclick="closeHistory(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-title">📚 История прохождений</div>
+            <div id="historyList"></div>
+            <button class="modal-close" onclick="closeHistory()">Закрыть</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Start Screen -->
+        <div id="startScreen" class="start-screen">
+            <div class="card header">
+                <span class="emoji">🎬</span>
+                <h1>Какой ты персонаж из советских мультфильмов?</h1>
+                <p>Пройди тест из 10 вопросов и узнай!</p>
+                <div class="characters-preview">
+                    <span class="char-preview" style="--i:0">🍯</span>
+                    <span class="char-preview" style="--i:1">🍊</span>
+                    <span class="char-preview" style="--i:2">🚁</span>
+                    <span class="char-preview" style="--i:3">🐱</span>
+                    <span class="char-preview" style="--i:4">🐊</span>
+                    <span class="char-preview" style="--i:5">🎒</span>
+                </div>
+            </div>
+            <button class="btn btn-start" onclick="startQuiz()">🚀 Начать тест!</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quizScreen" class="hidden">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="card question-card" id="questionCard">
+                <span class="question-number" id="questionNumber">Вопрос 1/10</span>
+                <h2 class="question-text" id="questionText"></h2>
+                <div class="answers" id="answersContainer"></div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="resultScreen" class="hidden">
+            <div class="card result-card">
+                <div class="result-emoji" id="resultEmoji">🎉</div>
+                <div class="result-title">Ты —</div>
+                <h2 class="result-character" id="resultCharacter"></h2>
+                <div class="result-traits" id="resultTraits"></div>
+                <div class="meme-container" id="memeContainer" style="display:none">
+                    <div class="meme-text" id="memeText"></div>
+                    <div class="meme-subtext" id="memeSubtext"></div>
+                </div>
+                <div id="matchBars" style="margin-bottom:16px"></div>
+                <div class="result-description" id="resultDescription"></div>
+                <button class="btn btn-primary" onclick="shareResult()">📤 Поделиться результатом</button>
+                <button class="btn btn-telegram" onclick="shareToTelegram()">✈️ Отправить в Telegram</button>
+                <button class="btn btn-star" onclick="buyDetailedAnalysis()">⭐ Подробный разбор за 1 Star</button>
+                <button class="btn btn-secondary" onclick="restartQuiz()">🔄 Пройти ещё раз</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // === Theme ===
+        let isDark = localStorage.getItem('sqDark') === '1';
+        if (isDark) { document.body.classList.add('dark-mode'); document.getElementById('themeBtn').textContent = '☀️'; }
+        function toggleTheme() {
+            isDark = !isDark;
+            document.body.classList.toggle('dark-mode');
+            document.getElementById('themeBtn').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('sqDark', isDark ? '1' : '0');
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        // === History ===
+        function getHistory() { try { return JSON.parse(localStorage.getItem('sqHistory') || '[]'); } catch { return []; } }
+        function saveToHistory(key, name, emoji) {
+            const h = getHistory();
+            h.unshift({ key, name, emoji, date: new Date().toISOString() });
+            if (h.length > 20) h.length = 20;
+            localStorage.setItem('sqHistory', JSON.stringify(h));
+        }
+        function showHistory() {
+            const h = getHistory();
+            const list = document.getElementById('historyList');
+            if (!h.length) {
+                list.innerHTML = '<div class="history-empty">Пока нет истории<br>Пройди тест! 🎬</div>';
+            } else {
+                list.innerHTML = h.map(item => {
+                    const d = new Date(item.date);
+                    const ds = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    return `<div class="history-item"><span>${item.emoji} ${item.name}</span><span style="color:#999;font-size:12px">${ds}</span></div>`;
+                }).join('');
+            }
+            document.getElementById('historyModal').classList.add('active');
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+        function closeHistory(e) {
+            if (!e || e.target.id === 'historyModal' || !e.target.closest('.modal-content'))
+                document.getElementById('historyModal').classList.remove('active');
+        }
+
+        // === Characters ===
+        const characters = {
+            pooh: { name: 'Винни-Пух', emoji: '🍯', traits: ['Мечтатель', 'Философ', 'Друг', 'Сладкоежка'],
+                description: 'Ты — настоящий мечтатель и философ! Как Винни-Пух, ты ценишь простые радости жизни: дружбу, уют и вкусную еду. Ты всегда готов помочь друзьям, а мудрость приходит к тебе в самых неожиданных моментах.',
+                meme: 'Когда съел весь мёд и не жалеешь', memeSub: '«Никогда не знаешь, сколько у тебя мёда, пока не съешь его»' },
+            cheburashka: { name: 'Чебурашка', emoji: '🍊', traits: ['Добрый', 'Наивный', 'Верный', 'Оптимист'],
+                description: 'Ты — воплощение доброты и наивности! Как Чебурашка, ты веришь в лучшее в людях и всегда готов подружиться. Твоя искренняя улыбка покоряет всех вокруг.',
+                meme: 'Когда нашёл друга в неожиданном месте', memeSub: '«Привет! А я тут в ящике сидел»' },
+            karlson: { name: 'Карлсон', emoji: '🚁', traits: ['Весельчак', 'Авантюрист', 'Свободолюбивый', 'Хитрец'],
+                description: 'Ты — мужчина в самом расцвете сил! Как Карлсон, ты обожаешь веселье, приключения и сладости. Правила — это скучно, а жизнь — это праздник!',
+                meme: 'Когда опять прилетел без спросу', memeSub: '«Спокойствие, только спокойствие!»' },
+            matroskin: { name: 'Кот Матроскин', emoji: '🐱', traits: ['Практичный', 'Хозяйственный', 'Рассудительный', 'Бережливый'],
+                description: 'Ты — хозяйственный и практичный, как Матроскин! Ты знаешь цену каждой копейке и всегда имеешь план. Без тебя всё развалится!',
+                meme: 'Когда посчитал расходы за месяц', memeSub: '«Бутерброд надо класть колбасой на язык!»' },
+            gena: { name: 'Крокодил Гена', emoji: '🐊', traits: ['Мудрый', 'Спокойный', 'Надёжный', 'Меланхоличный'],
+                description: 'Ты — спокойный и мудрый, как Гена. Ты ценишь стабильность и гармонию, а друзья знают, что на тебя всегда можно положиться.',
+                meme: 'Когда все куда-то бегут, а ты спокоен', memeSub: '«Пусть бегут неуклюже пешеходы по лужам...»' },
+            neznayka: { name: 'Незнайка', emoji: '🎒', traits: ['Смелый', 'Любопытный', 'Импульсивный', 'Непоседа'],
+                description: 'Ты — неугомонный искатель приключений! Как Незнайка, ты хватаешься за всё и сразу, иногда попадаешь в передряги, но всегда выходишь сухим из воды.',
+                meme: 'Когда взялся за новое дело без подготовки', memeSub: '«Я и сам всё знаю! Ну почти...»' },
+            shapoklyak: { name: 'Шапокляк', emoji: '👜', traits: ['Хитрая', 'Находчивая', 'Энергичная', 'Своенравная'],
+                description: 'Ты — невероятно находчивый и энергичный человек! Как Шапокляк, ты всегда действуешь по-своему и никогда не скучаешь. Хорошие дела? Может быть... но по твоим правилам!',
+                meme: 'Когда план сработал', memeSub: '«Кто людям помогает — тот тратит время зря»' },
+            kuzya: { name: 'Домовёнок Кузя', emoji: '✨', traits: ['Добрый', 'Помощник', 'Любопытный', 'Преданный'],
+                description: 'Ты — домашний помощник с золотым сердцем! Как Кузя, ты обожаешь уют и порядок, а главное — семью и близких.',
+                meme: 'Когда создал уют в доме', memeSub: '«Кузь-кузь-кузь! Кто это тут у нас?»' }
+        };
+
+        // === Questions ===
+        const questions = [
+            { text: 'Как ты обычно проводишь выходные?', answers: [
+                { text: 'Читаю и размышляю о жизни', character: 'pooh' },
+                { text: 'Встречаюсь с друзьями', character: 'karlson' },
+                { text: 'Занимаюсь хозяйством', character: 'matroskin' },
+                { text: 'Ищу приключения!', character: 'neznayka' }
+            ]},
+            { text: 'Что для тебя самое важное?', answers: [
+                { text: 'Дружба и взаимопомощь', character: 'cheburashka' },
+                { text: 'Уют и вкусная еда', character: 'pooh' },
+                { text: 'Свобода и веселье', character: 'karlson' },
+                { text: 'Стабильность и порядок', character: 'gena' }
+            ]},
+            { text: 'Как ты поступаешь в трудной ситуации?', answers: [
+                { text: 'Ищу практичное решение', character: 'matroskin' },
+                { text: 'Сохраняю спокойствие', character: 'gena' },
+                { text: 'Иду напролом!', character: 'neznayka' },
+                { text: 'Действую в своих интересах', character: 'shapoklyak' }
+            ]},
+            { text: 'Какой твой любимый напиток?', answers: [
+                { text: 'Мёд 🍯', character: 'pooh' },
+                { text: 'Апельсиновый сок 🍊', character: 'cheburashka' },
+                { text: 'Варенье 🍓', character: 'karlson' },
+                { text: 'Молоко 🥛', character: 'matroskin' }
+            ]},
+            { text: 'Какое твоё главное качество?', answers: [
+                { text: 'Мудрость', character: 'gena' },
+                { text: 'Щедрость', character: 'karlson' },
+                { text: 'Трудолюбие', character: 'matroskin' },
+                { text: 'Отвага', character: 'neznayka' }
+            ]},
+            { text: 'Как ты относишься к правилам?', answers: [
+                { text: 'Правила? Какие правила?', character: 'karlson' },
+                { text: 'Следую тем, что разумны', character: 'gena' },
+                { text: 'Соблюдаю строго', character: 'matroskin' },
+                { text: 'Создаю свои правила', character: 'shapoklyak' }
+            ]},
+            { text: 'Что выберешь для отдыха?', answers: [
+                { text: 'Тихое место для размышлений', character: 'pooh' },
+                { text: 'Весёлую компанию', character: 'cheburashka' },
+                { text: 'Путешествие в неизвестность', character: 'neznayka' },
+                { text: 'Домашний уют с книгой', character: 'kuzya' }
+            ]},
+            { text: 'Как принимаешь решения?', answers: [
+                { text: 'Слушаю сердце', character: 'pooh' },
+                { text: 'Доверяю интуиции', character: 'cheburashka' },
+                { text: 'Считаю все за и против', character: 'matroskin' },
+                { text: 'Действую импульсивно', character: 'karlson' }
+            ]},
+            { text: 'Что скажешь другу в трудную минуту?', answers: [
+                { text: '«Всё будет хорошо, я с тобой»', character: 'cheburashka' },
+                { text: '«Спокойствие, только спокойствие»', character: 'karlson' },
+                { text: '«Давай разберёмся по пунктам»', character: 'matroskin' },
+                { text: '«Пусть бегут неуклюжие...»', character: 'gena' }
+            ]},
+            { text: 'Какой подарок хотел бы получить?', answers: [
+                { text: 'Баночку мёда', character: 'pooh' },
+                { text: 'Новых друзей', character: 'cheburashka' },
+                { text: 'Пропеллер на спину', character: 'karlson' },
+                { text: 'Уютный дом', character: 'kuzya' }
+            ]}
+        ];
+
+        // === Quiz State ===
+        let current = 0;
+        let scores = {};
+        Object.keys(characters).forEach(k => scores[k] = 0);
+
+        function startQuiz() {
+            current = 0;
+            Object.keys(scores).forEach(k => scores[k] = 0);
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('quizScreen').classList.remove('hidden');
+            tg.BackButton.show();
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = questions[current];
+            const progress = ((current + 1) / questions.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('questionNumber').textContent = `Вопрос ${current + 1}/${questions.length}`;
+            document.getElementById('questionText').textContent = q.text;
+
+            const container = document.getElementById('answersContainer');
+            const letters = ['А', 'Б', 'В', 'Г'];
+            container.innerHTML = q.answers.map((a, i) =>
+                `<button class="answer-btn" onclick="selectAnswer('${a.character}')">
+                    <span class="answer-letter">${letters[i]}</span>
+                    <span>${a.text}</span>
+                </button>`
+            ).join('');
+        }
+
+        function selectAnswer(character) {
+            if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+            scores[character]++;
+            current++;
+
+            if (current < questions.length) {
+                const card = document.getElementById('questionCard');
+                card.classList.add('sliding-out');
+                setTimeout(() => {
+                    showQuestion();
+                    card.classList.remove('sliding-out');
+                    card.classList.add('sliding-in');
+                    setTimeout(() => card.classList.remove('sliding-in'), 250);
+                }, 250);
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quizScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            tg.BackButton.show();
+
+            // Find winner
+            const maxScore = Math.max(...Object.values(scores));
+            const winners = Object.keys(scores).filter(k => scores[k] === maxScore);
+            const winner = winners[Math.floor(Math.random() * winners.length)];
+            const char = characters[winner];
+
+            document.getElementById('resultEmoji').textContent = char.emoji;
+            document.getElementById('resultCharacter').textContent = char.name;
+            document.getElementById('resultDescription').textContent = char.description;
+
+            // Traits
+            document.getElementById('resultTraits').innerHTML = char.traits.map(t =>
+                `<span class="trait">${t}</span>`
+            ).join('');
+
+            // Meme
+            if (char.meme) {
+                document.getElementById('memeText').textContent = char.meme;
+                document.getElementById('memeSubtext').textContent = char.memeSub;
+                document.getElementById('memeContainer').style.display = 'block';
+            }
+
+            // Match bars — top 3
+            const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            document.getElementById('matchBars').innerHTML = sorted.map(([key, score]) => {
+                const c = characters[key];
+                const pct = Math.round((score / questions.length) * 100);
+                return `<div class="match-item">
+                    <span class="match-emoji">${c.emoji}</span>
+                    <div class="match-bar-container"><div class="match-bar" style="width:${pct}%;opacity:${key===winner?1:0.5}"></div></div>
+                    <span class="match-percent">${pct}%</span>
+                </div>`;
+            }).join('');
+
+            saveToHistory(winner, char.name, char.emoji);
+            createConfetti();
+            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+
+            // Send data to bot
+            try { tg.sendData(JSON.stringify({ result: winner, character: char.name })); } catch(e) {}
+        }
+
+        function createConfetti() {
+            const colors = ['#FFD93D', '#FF6B35', '#FF4757', '#4989F4', '#2ECC71', '#764ba2'];
+            for (let i = 0; i < 25; i++) {
+                setTimeout(() => {
+                    const el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.style.left = Math.random() * 100 + '%';
+                    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 2500);
+                }, i * 40);
+            }
+        }
+
+        // === Sharing ===
+        function shareResult() {
+            const name = document.getElementById('resultCharacter').textContent;
+            const emoji = document.getElementById('resultEmoji').textContent;
+            const text = `${emoji} Я — ${name}!\n\n🎬 Пройди тест и узнай, какой ты персонаж из советских мультфильмов!`;
+            try {
+                const bot = tg.initDataUnsafe?.bot?.username;
+                if (bot) { tg.openTelegramLink(`https://t.me/share/url?url=https://t.me/${bot}&text=${encodeURIComponent(text)}`); return; }
+            } catch(e) {}
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => tg.showAlert('Текст скопирован! Отправь друзьям.'));
+            }
+        }
+
+        function shareToTelegram() {
+            const name = document.getElementById('resultCharacter').textContent;
+            const emoji = document.getElementById('resultEmoji').textContent;
+            const text = `${emoji} Я — ${name}!\n\n🎬 Узнай, какой ты персонаж из советских мультфильмов!`;
+            const shareUrl = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
+            try { tg.openTelegramLink(shareUrl); } catch(e) {
+                if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => tg.showAlert('Текст скопирован!'));
+            }
+            if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function buyDetailedAnalysis() {
+            tg.showPopup({
+                title: '⭐ Подробный разбор',
+                message: 'Получи детальный анализ характера с персональными рекомендациями!\n\nСтоимость: 1 Star ⭐',
+                buttons: [
+                    { id: 'pay', type: 'default', text: 'Купить за 1 ⭐' },
+                    { type: 'cancel' }
+                ]
+            }, (id) => {
+                if (id === 'pay') tg.showAlert('Спасибо! Здесь будет детальный разбор.');
+            });
+        }
+
+        function restartQuiz() {
+            current = 0;
+            Object.keys(scores).forEach(k => scores[k] = 0);
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+            document.getElementById('memeContainer').style.display = 'none';
+            tg.BackButton.hide();
+        }
+
+        // Back button
+        tg.BackButton.onClick(() => {
+            if (!document.getElementById('resultScreen').classList.contains('hidden')) { restartQuiz(); }
+            else if (!document.getElementById('quizScreen').classList.contains('hidden') && current > 0) { current--; showQuestion(); }
+            else { restartQuiz(); }
+        });
+    </script>
+</body>
+</html>
