@@ -575,10 +575,11 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        bot_id: 'quiz',
                         title: 'Подробный разбор характера',
                         description: 'Детальный анализ + рекомендации + совместимость',
                         amount: 1,
-                        payload: JSON.stringify({ product: 'quiz_detailed', ts: Date.now() })
+                        payload: JSON.stringify({ product: 'quiz_soviet_detailed', ts: Date.now() })
                     })
                 });
                 const data = await resp.json();

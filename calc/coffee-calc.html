@@ -500,10 +500,11 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        bot_id: 'calc',
                         title: 'Персональный план экономии',
                         description: 'Пошаговый план как сэкономить на кофе + лайфхаки',
                         amount: 1,
-                        payload: JSON.stringify({ product: 'coffee_tips', ts: Date.now() })
+                        payload: JSON.stringify({ product: 'calc_coffee_tips', ts: Date.now() })
                     })
                 });
                 const data = await resp.json();
