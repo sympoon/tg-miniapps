@@ -284,6 +284,7 @@
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-share" onclick="shareResult()">📤 Поделиться результатом</button>
+            <button class="btn" style="background:linear-gradient(135deg,#FFD700,#FFA500);color:#333;box-shadow:0 4px 16px rgba(255,215,0,0.3)" onclick="buyTips()">⭐ План экономии за 1 Star</button>
             <button class="btn btn-reset" onclick="resetCalc()">🔄 Сбросить</button>
         </div>
     </div>
@@ -491,6 +492,33 @@
                 navigator.clipboard.writeText(text).then(() => tg.showAlert('Текст скопирован! Отправь друзьям.'));
             }
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        async function buyTips() {
+            try {
+                const resp = await fetch('/api/invoice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Персональный план экономии',
+                        description: 'Пошаговый план как сэкономить на кофе + лайфхаки',
+                        amount: 1,
+                        payload: JSON.stringify({ product: 'coffee_tips', ts: Date.now() })
+                    })
+                });
+                const data = await resp.json();
+                if (data.success && data.invoiceUrl) {
+                    tg.openInvoice(data.invoiceUrl, (status) => {
+                        if (status === 'paid') {
+                            tg.showAlert('✅ Спасибо! План отправлен тебе в чат с ботом.');
+                        }
+                    });
+                } else {
+                    tg.showAlert('Ошибка создания платежа. Попробуй позже.');
+                }
+            } catch(e) {
+                tg.showAlert('Ошибка соединения. Попробуй позже.');
+            }
         }
 
         function resetCalc() {

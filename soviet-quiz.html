@@ -569,17 +569,31 @@
             if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         }
 
-        function buyDetailedAnalysis() {
-            tg.showPopup({
-                title: '⭐ Подробный разбор',
-                message: 'Получи детальный анализ характера с персональными рекомендациями!\n\nСтоимость: 1 Star ⭐',
-                buttons: [
-                    { id: 'pay', type: 'default', text: 'Купить за 1 ⭐' },
-                    { type: 'cancel' }
-                ]
-            }, (id) => {
-                if (id === 'pay') tg.showAlert('Спасибо! Здесь будет детальный разбор.');
-            });
+        async function buyDetailedAnalysis() {
+            try {
+                const resp = await fetch('/api/invoice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Подробный разбор характера',
+                        description: 'Детальный анализ + рекомендации + совместимость',
+                        amount: 1,
+                        payload: JSON.stringify({ product: 'quiz_detailed', ts: Date.now() })
+                    })
+                });
+                const data = await resp.json();
+                if (data.success && data.invoiceUrl) {
+                    tg.openInvoice(data.invoiceUrl, (status) => {
+                        if (status === 'paid') {
+                            tg.showAlert('✅ Спасибо! Разбор отправлен тебе в чат с ботом.');
+                        }
+                    });
+                } else {
+                    tg.showAlert('Ошибка создания платежа. Попробуй позже.');
+                }
+            } catch(e) {
+                tg.showAlert('Ошибка соединения. Попробуй позже.');
+            }
         }
 
         function restartQuiz() {
